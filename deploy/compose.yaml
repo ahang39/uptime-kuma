@@ -1,0 +1,17 @@
+services:
+  uptime-kuma:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: uptime-kuma
+    restart: unless-stopped
+    volumes:
+      # 持久化数据
+      - kuma-data:/app/data
+      # 映射宿主机 docker.sock，用于控制容器
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "3001:3001"
+
+volumes:
+  kuma-data:

@@ -110,6 +110,70 @@ class DockerHost {
     }
 
     /**
+     * Build axios request options for a given docker host
+     * @param {object} dockerHost Docker host configuration
+     * @param {string} url API endpoint URL path
+     * @param {string} method HTTP method (GET, POST, etc.)
+     * @param {number} timeout Request timeout in ms
+     * @returns {Promise<object>} Axios request options
+     */
+    static async getAxiosOptions(dockerHost, url, method = "GET", timeout = 10000) {
+        const options = {
+            url,
+            method,
+            timeout,
+            headers: {
+                Accept: "*/*",
+            },
+            signal: axiosAbortSignal(timeout + 1000),
+        };
+
+        if (dockerHost.dockerType === "socket") {
+            options.socketPath = dockerHost.dockerDaemon;
+        } else if (dockerHost.dockerType === "tcp") {
+            options.baseURL = DockerHost.patchDockerURL(dockerHost.dockerDaemon);
+            options.httpsAgent = new https.Agent(
+                await DockerHost.getHttpsAgentOptions(dockerHost.dockerType, options.baseURL)
+            );
+        }
+
+        return options;
+    }
+
+    /**
+     * Start a Docker container
+     * @param {object} dockerHost Docker host configuration
+     * @param {string} containerID Container name or ID
+     * @returns {Promise<void>}
+     */
+    static async startContainer(dockerHost, containerID) {
+        const options = await DockerHost.getAxiosOptions(dockerHost, `/containers/${containerID}/start`, "POST", 30000);
+        await axios.request(options);
+    }
+
+    /**
+     * Stop a Docker container
+     * @param {object} dockerHost Docker host configuration
+     * @param {string} containerID Container name or ID
+     * @returns {Promise<void>}
+     */
+    static async stopContainer(dockerHost, containerID) {
+        const options = await DockerHost.getAxiosOptions(dockerHost, `/containers/${containerID}/stop`, "POST", 30000);
+        await axios.request(options);
+    }
+
+    /**
+     * Restart a Docker container
+     * @param {object} dockerHost Docker host configuration
+     * @param {string} containerID Container name or ID
+     * @returns {Promise<void>}
+     */
+    static async restartContainer(dockerHost, containerID) {
+        const options = await DockerHost.getAxiosOptions(dockerHost, `/containers/${containerID}/restart`, "POST", 60000);
+        await axios.request(options);
+    }
+
+    /**
      * Since axios 0.27.X, it does not accept `tcp://` protocol.
      * Change it to `http://` on the fly in order to fix it. (https://github.com/louislam/uptime-kuma/issues/2165)
      * @param {any} url URL to fix

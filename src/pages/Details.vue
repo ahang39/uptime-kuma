@@ -71,7 +71,29 @@
                     <span>{{ $t("Last Result") }}:</span>
                     <span class="keyword">{{ monitor.dns_last_result }}</span>
                 </span>
-                <span v-if="monitor.type === 'docker'">Docker container: {{ monitor.docker_container }}</span>
+                <div v-if="monitor.type === 'docker'" class="docker-monitor-info">
+                    Docker container: {{ monitor.docker_container }}
+                    <div class="docker-container-actions mt-2">
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button class="btn btn-outline-success" :disabled="dockerActionLoading" @click="dockerContainerStart">
+                                <font-awesome-icon icon="play" />
+                                {{ $t("dockerStart") }}
+                            </button>
+                            <button class="btn btn-outline-warning" :disabled="dockerActionLoading" @click="dockerContainerRestartDialog">
+                                <font-awesome-icon icon="sync" />
+                                {{ $t("dockerRestart") }}
+                            </button>
+                            <button class="btn btn-outline-danger" :disabled="dockerActionLoading" @click="dockerContainerStopDialog">
+                                <font-awesome-icon icon="stop" />
+                                {{ $t("dockerStop") }}
+                            </button>
+                        </div>
+                        <div v-if="dockerActionLoading" class="mt-1 text-muted small">
+                            <font-awesome-icon icon="spinner" spin />
+                            {{ $t("dockerActionProcessing") }}
+                        </div>
+                    </div>
+                </div>
                 <span v-if="monitor.type === 'gamedig'">
                     Gamedig - {{ monitor.game }}: {{ monitor.hostname }}:{{ monitor.port }}
                 </span>
@@ -425,6 +447,26 @@
             >
                 {{ $t("clearHeartbeatsMsg") }}
             </Confirm>
+
+            <Confirm
+                ref="confirmDockerStop"
+                btn-style="btn-danger"
+                :yes-text="$t('Yes')"
+                :no-text="$t('No')"
+                @yes="dockerContainerStop"
+            >
+                {{ $t("dockerStopConfirmMsg") }}
+            </Confirm>
+
+            <Confirm
+                ref="confirmDockerRestart"
+                btn-style="btn-warning"
+                :yes-text="$t('Yes')"
+                :no-text="$t('No')"
+                @yes="dockerContainerRestart"
+            >
+                {{ $t("dockerRestartConfirmMsg") }}
+            </Confirm>
         </div>
     </transition>
 </template>
@@ -491,6 +533,7 @@ export default {
                 code: "",
             },
             deleteChildrenMonitors: false,
+            dockerActionLoading: false,
         };
     },
     computed: {
@@ -712,6 +755,70 @@ export default {
                 this.$root.toastRes(res);
                 if (res.ok) {
                     this.$router.push("/dashboard");
+                }
+            });
+        },
+
+        /**
+         * Start the Docker container associated with this monitor
+         * @returns {void}
+         */
+        dockerContainerStart() {
+            this.dockerActionLoading = true;
+            this.$root.getSocket().emit("dockerContainerStart", this.monitor.docker_host, this.monitor.docker_container, (res) => {
+                this.dockerActionLoading = false;
+                if (res.ok) {
+                    toast.success(res.msg);
+                } else {
+                    toast.error(res.msg);
+                }
+            });
+        },
+
+        /**
+         * Show confirmation dialog before stopping the container
+         * @returns {void}
+         */
+        dockerContainerStopDialog() {
+            this.$refs.confirmDockerStop.show();
+        },
+
+        /**
+         * Stop the Docker container associated with this monitor
+         * @returns {void}
+         */
+        dockerContainerStop() {
+            this.dockerActionLoading = true;
+            this.$root.getSocket().emit("dockerContainerStop", this.monitor.docker_host, this.monitor.docker_container, (res) => {
+                this.dockerActionLoading = false;
+                if (res.ok) {
+                    toast.success(res.msg);
+                } else {
+                    toast.error(res.msg);
+                }
+            });
+        },
+
+        /**
+         * Show confirmation dialog before restarting the container
+         * @returns {void}
+         */
+        dockerContainerRestartDialog() {
+            this.$refs.confirmDockerRestart.show();
+        },
+
+        /**
+         * Restart the Docker container associated with this monitor
+         * @returns {void}
+         */
+        dockerContainerRestart() {
+            this.dockerActionLoading = true;
+            this.$root.getSocket().emit("dockerContainerRestart", this.monitor.docker_host, this.monitor.docker_container, (res) => {
+                this.dockerActionLoading = false;
+                if (res.ok) {
+                    toast.success(res.msg);
+                } else {
+                    toast.error(res.msg);
                 }
             });
         },
@@ -1039,6 +1146,15 @@ table {
 
     .dark & {
         opacity: 0.7;
+    }
+}
+
+.docker-container-actions {
+    display: inline-block;
+    margin-left: 8px;
+
+    .btn-group {
+        vertical-align: middle;
     }
 }
 </style>
