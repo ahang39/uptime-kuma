@@ -6,9 +6,18 @@ WORKDIR /app
 
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1
 
+# Install build tools for native modules (sqlite3)
+RUN apt update && \
+    apt install --yes --no-install-recommends python3 make g++ && \
+    rm -rf /var/lib/apt/lists/*
+
 # Install all dependencies (including dev dependencies for Vite build)
 COPY uptime-kuma/package.json uptime-kuma/package-lock.json ./
-RUN npm ci --legacy-peer-deps
+RUN npm config set registry https://registry.npmmirror.com && \
+    npm config set node_sqlite3_binary_host_mirror https://npmmirror.com/mirrors/node-sqlite3 && \
+    npm ci --legacy-peer-deps || \
+    npm ci --legacy-peer-deps || \
+    npm ci --legacy-peer-deps
 
 # Copy source code for building
 COPY uptime-kuma/ .
